@@ -1,0 +1,193 @@
+#+TITLE: Gigamonkeys Lisp
+#+AUTHOR: 147Pm
+#+EMAIL: teilchen010.gmail.com
+# date ... will set (change) each time (if remembered)
+#+DATE: 2017-11-17T14:11:41
+#+FILETAGS: :GIGAMONKEYS:
+#+LANGUAGE:  en
+#+INFOJS_OPT: view:showall ltoc:t mouse:underline path:http://orgmode.org/org-info.js
+#+HTML_HEAD: <link rel="stylesheet" href="../../data/stylesheet.css" type="text/css">
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+HTML_MATHJAX: align: left indent: 5em tagside: left font: Neo-Euler
+#+OPTIONS: H:10 num:4 toc:t \n:nil @:t ::t |:t _:{} *:t ^:{} prop:t
+#+OPTIONS: prop:t
+#+OPTIONS: tex:t
+#+STARTUP: showall
+#+STARTUP: align
+#+STARTUP: indent
+#+STARTUP: entitiespretty
+#+STARTUP: logdrawer
+#+STARTUP: hidestars
+
+* GIGAMONKEYS LISP
+
+
+** CHAPTER 3
+:LOGBOOK:
+- [2017-11-18 Sat 10:21] \\
+  [[https://emacs.stackexchange.com/questions/36944/key-binding-to-invoke-more-than-two-commands/36946#36946][This link]] talks about automating a set of code formatting commands.
+- [2017-11-17 Fri 14:52] \\
+  ~(global-set-key (kbd "C-c a b c") (lambda () (interactive) (some-command) (some-other-command)))~ allows you to bind a bunch of commands to one key.
+- [2017-11-17 Fri 14:50] \\
+  ~C-h k~ will allow you to put in a key and get its elisp function name.
+:END:
+
+\rightarrow 2017-11-18T10:40:30 plists
+
+The data structure /p-list/ can be created with a regular `list` function:
+
+#+begin_src lisp :results raw
+(list :a 1 :b 2 :c 3)
+#+end_src
+
+#+RESULTS:
+(:A 1 :B 2 :C 3)
+
+then gotten with `getf`
+
+#+begin_src lisp :results raw
+(getf (list :a 1 :b 2 :c 3) :c)
+#+end_src
+
+#+RESULTS:
+3
+
+\rightarrow 2017-11-17T14:34:39 CD storage with plists
+
+#+begin_src lisp :results silent
+(defun make-cd (title artist rating ripped)
+  (list :title title :artist artist :rating rating :ripped ripped))
+#+end_src
+
+then a "record" is created
+
+#+begin_src lisp :results raw
+(make-cd "Roses" "Kathy Mattea" 7 t)
+#+end_src
+
+#+RESULTS:
+(:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T)
+
+Create global variable to hold onto "records"
+
+#+begin_src lisp :results silent
+(defvar *db* nil)
+#+end_src
+
+~add-record~ function, using ~push~:
+
+#+begin_src lisp :results silent
+(defun add-record (cd)
+  (push cd *db*))
+#+end_src
+
+Add some records
+
+#+begin_src lisp :results raw
+(add-record (make-cd "Roses" "Kathy Mattea" 7 t))
+(add-record (make-cd "Fly" "Dixie Chicks" 8 t))
+(add-record (make-cd "Home" "Dixie Chicks" 9 t))
+#+end_src
+
+#+RESULTS:
+((:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
+ (:TITLE "Fly" :ARTIST "Dixie Chicks" :RATING 8 :RIPPED T)
+ (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T)
+ (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T))
+
+Notice how we're calling ~add-record~ with another call to ~make-cd~
+
+Look at ~*db*~
+
+#+begin_src lisp :results raw
+*db*
+#+end_src
+
+#+RESULTS:
+((:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
+ (:TITLE "Fly" :ARTIST "Dixie Chicks" :RATING 8 :RIPPED T)
+ (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T)
+ (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T))
+
+#+begin_src lisp :results silent
+(defun dump-db ()
+  (dolist (cd *db*)
+    (format t "~{~a:~10t~a~%~}~%" cd)))
+#+end_src
+
+Try it
+
+#+begin_src lisp :results output
+(dump-db)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+TITLE:    Home
+ARTIST:   Dixie Chicks
+RATING:   9
+RIPPED:   T
+
+TITLE:    Fly
+ARTIST:   Dixie Chicks
+RATING:   8
+RIPPED:   T
+
+TITLE:    Roses
+ARTIST:   Kathy Mattea
+RATING:   7
+RIPPED:   T
+
+TITLE:    Roses
+ARTIST:   Kathy Mattea
+RATING:   7
+RIPPED:   T
+
+#+end_example
+
+To prompt at the REPL
+
+#+begin_src lisp :results silent
+(defun prompt-read (prompt)
+  (format *query-io* "~a: " prompt)
+  (force-output *query-io*)
+  (read-line *query-io*))
+#+end_src
+
+#+begin_src lisp :results silent
+(defun prompt-for-cd ()
+  (make-cd
+   (prompt-read "Title")
+   (prompt-read "Artist")
+   (or (parse-integer (prompt-read "Rating") :junk-allowed t) 0)
+   (y-or-n-p "Ripped [y/n]: ")))
+#+end_src
+
+#+begin_src lisp :results silent
+(defun add-cds ()
+  (loop (add-record (prompt-for-cd))
+     (if (not (y-or-n-p "Another? [y/n]: ")) (return))))
+#+end_src
+
+Again, we're calling a function that, in turn, calls a function, that calls a function. ~(defun add-record (cd) (push cd *db*))~ is using ~push~ which produces a list. ~make-cd~ from before uses ~list~ to construct a list.
+
+#+begin_src lisp :results silent
+(defun save-db (filename)
+  (with-open-file (out filename
+                       :direction :output
+                       :if-exists :supersede)
+    (with-standard-io-syntax
+      (print *db* out))))
+#+end_src
+
+The function to load the database back in is similar
+
+#+begin_src lisp :results silent
+(defun load-db (filename)
+  (with-open-file (in filename)
+    (with-standard-io-syntax
+      (setf *db* (read in)))))
+#+end_src
+
+
