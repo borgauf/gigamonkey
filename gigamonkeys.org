@@ -25,6 +25,18 @@
 
 ** CHAPTER 3
 :LOGBOOK:
+- [2017-11-19 Sun 11:19] \\
+  This code (in misc.el) indents a babel code block
+  
+  (defun my-run-org-babel-codeblock-format ()
+    "Run org babel codeblock formatting in sequence."
+    (interactive)
+    (org-edit-special)
+    (indent-region (point-min) (point-max))
+    (org-edit-src-exit))
+    
+  
+  (global-set-key (kbd "C-c C-'") 'my-run-org-babel-codeblock-format)
 - [2017-11-18 Sat 10:21] \\
   [[https://emacs.stackexchange.com/questions/36944/key-binding-to-invoke-more-than-two-commands/36946#36946][This link]] talks about automating a set of code formatting commands.
 - [2017-11-17 Fri 14:52] \\
