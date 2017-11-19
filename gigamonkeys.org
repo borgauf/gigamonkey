@@ -202,4 +202,7 @@ The function to load the database back in is similar
       (setf *db* (read in)))))
 #+end_src
 
+\rightarrow 2017-11-19T15:46:18 Querying the database
+
+
 
