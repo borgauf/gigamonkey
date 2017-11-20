@@ -25,6 +25,8 @@
 
 ** CHAPTER 3
 :LOGBOOK:
+- [2017-11-20 Mon 14:10] \\
+  ~C-c C-v C-b~ will evaluate all code blocks in an org buffer.
 - [2017-11-19 Sun 11:19] \\
   This code (in misc.el) indents a babel code block
   
@@ -100,12 +102,13 @@ Add some records
 (add-record (make-cd "Roses" "Kathy Mattea" 7 t))
 (add-record (make-cd "Fly" "Dixie Chicks" 8 t))
 (add-record (make-cd "Home" "Dixie Chicks" 9 t))
+(add-record (make-cd "Victorialand" "Cocteau Twins" 10 t))
 #+end_src
 
 #+RESULTS:
-((:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
+((:TITLE "Victorialand" :ARTIST "Cocteau Twins" :RATING 10 :RIPPED T)
+ (:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
  (:TITLE "Fly" :ARTIST "Dixie Chicks" :RATING 8 :RIPPED T)
- (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T)
  (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T))
 
 Notice how we're calling ~add-record~ with another call to ~make-cd~
@@ -117,9 +120,9 @@ Look at ~*db*~
 #+end_src
 
 #+RESULTS:
-((:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
+((:TITLE "Victorialand" :ARTIST "Cocteau Twins" :RATING 10 :RIPPED T)
+ (:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
  (:TITLE "Fly" :ARTIST "Dixie Chicks" :RATING 8 :RIPPED T)
- (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T)
  (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T))
 
 #+begin_src lisp :results silent
@@ -136,6 +139,11 @@ Try it
 
 #+RESULTS:
 #+begin_example
+TITLE:    Victorialand
+ARTIST:   Cocteau Twins
+RATING:   10
+RIPPED:   T
+
 TITLE:    Home
 ARTIST:   Dixie Chicks
 RATING:   9
@@ -144,11 +152,6 @@ RIPPED:   T
 TITLE:    Fly
 ARTIST:   Dixie Chicks
 RATING:   8
-RIPPED:   T
-
-TITLE:    Roses
-ARTIST:   Kathy Mattea
-RATING:   7
 RIPPED:   T
 
 TITLE:    Roses
@@ -193,6 +196,10 @@ Again, we're calling a function that, in turn, calls a function, that calls a fu
       (print *db* out))))
 #+end_src
 
+#+begin_src lisp :results silent
+(save-db "cddata.txt")
+#+end_src
+
 The function to load the database back in is similar
 
 #+begin_src lisp :results silent
@@ -202,7 +209,113 @@ The function to load the database back in is similar
       (setf *db* (read in)))))
 #+end_src
 
+#+begin_src lisp :results raw
+(load-db "cddata.txt")
+#+end_src
+
+#+RESULTS:
+((:TITLE "Victorialand" :ARTIST "Cocteau Twins" :RATING 10 :RIPPED T)
+ (:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
+ (:TITLE "Fly" :ARTIST "Dixie Chicks" :RATING 8 :RIPPED T)
+ (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T))
+
 \rightarrow 2017-11-19T15:46:18 Querying the database
 
+Start with the ~remove~ family, specifically ~remove-if-not~:
+
+#+begin_src lisp :results raw
+(remove-if-not #'evenp '(1 2 3 4 5 6 7 8 9 10))
+#+end_src
+
+#+RESULTS:
+(2 4 6 8 10)
 
 
+As we see, it /removes from the input list what is not even, leaving just the even integers. The funny notation #' is shorthand for "Get me the function with the following name." Without the #', Lisp would treat evenp as the name of a variable and look up the value of the variable, not the function. Nice to know....
+
+One more practice. If ~evenp~ didn’t exist, we could have created our own as a lambda:
+
+#+begin_src lisp :results raw
+#'(lambda (x) (= 0 (mod x 2))) '(1 2 3 4 5 6 7 8 9 10)
+#+end_src
+
+#+RESULTS:
+(1 2 3 4 5 6 7 8 9 10)
+
+
+#+begin_src lisp :results raw
+(remove-if-not #'(lambda (x) (= 0 (mod x 2))) '(1 2 3 4 5 6 7 8 9 10))
+#+end_src
+
+#+RESULTS:
+(2 4 6 8 10)
+
+\rightarrow 2017-11-20T13:55:46 specific and general queries
+
+Specific:
+
+#+begin_src lisp :results silent
+(defun select-by-artist (artist)
+  (remove-if-not
+   #'(lambda (cd) (equal (getf cd :artist) artist))
+   *db*))
+#+end_src
+
+#+begin_src lisp :results raw
+(select-by-artist "Cocteau Twins")
+#+end_src
+
+#+RESULTS:
+((:TITLE "Victorialand" :ARTIST "Cocteau Twins" :RATING 10 :RIPPED T))
+
+#+begin_src lisp :results raw
+(select-by-artist "Dixie Chicks")
+#+end_src
+
+#+RESULTS:
+((:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
+ (:TITLE "Fly" :ARTIST "Dixie Chicks" :RATING 8 :RIPPED T))
+
+A general function for any of the fields will simply take a function as its parameter, and that function can specifically query the database for a field:
+
+#+begin_src lisp :results silent
+(defun select (selector-fn)
+  (remove-if-not selector-fn *db*))
+#+end_src
+
+Now, create the individual field selectors
+
+#+begin_src lisp :results silent
+(defun artist-selector (artist)
+  #'(lambda (cd) (equal (getf cd :artist) artist)))
+#+end_src
+
+#+begin_src lisp :results silent
+(defun title-selector (title)
+  #'(lambda (cd) (equal (getf cd :title) title)))
+#+end_src
+
+#+begin_src lisp :results silent
+(defun ripped-selector (ripped)
+  #'(lambda (cd) (equal (getf cd :ripped) ripped)))
+#+end_src
+
+#+begin_src lisp :results raw
+(select (artist-selector "Cocteau Twins"))
+#+end_src
+
+#+RESULTS:
+((:TITLE "Victorialand" :ARTIST "Cocteau Twins" :RATING 10 :RIPPED T))
+
+#+begin_src lisp :results raw
+(select (ripped-selector T))
+#+end_src
+
+#+RESULTS:
+((:TITLE "Victorialand" :ARTIST "Cocteau Twins" :RATING 10 :RIPPED T)
+ (:TITLE "Home" :ARTIST "Dixie Chicks" :RATING 9 :RIPPED T)
+ (:TITLE "Fly" :ARTIST "Dixie Chicks" :RATING 8 :RIPPED T)
+ (:TITLE "Roses" :ARTIST "Kathy Mattea" :RATING 7 :RIPPED T))
+((:TITLE "Victorialand" :ARTIST "Cocteau Twins" :RATING 10 :RIPPED T))
+
+Even more general would be not to have to worry about any individual functions.
